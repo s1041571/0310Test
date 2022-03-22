@@ -1,0 +1,228 @@
+/* 清除瀏覽器預設邊距，
+使邊框和內邊距的值包含在元素的width和height內 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 使用flex佈局，讓內容垂直和水平居中 */
+
+section {
+    /* 相對定位 */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* linear-gradient() 函式用於建立一個表示兩種或多種顏色線性漸變的圖片 */
+    background: linear-gradient(to bottom, #008EE6, #008EE6);
+}
+
+/* 背景顏色 */
+
+section .color {
+    /* 絕對定位 */
+    position: absolute;
+    /* 使用filter(濾鏡) 屬性，給影象設定高斯模糊*/
+    filter: blur(200px);
+}
+
+/* :nth-child(n) 選擇器匹配父元素中的第 n 個子元素 */
+
+section .color:nth-child(1) {
+    top: -350px;
+    width: 600px;
+    height: 600px;
+    background: #008EE6;
+}
+
+section .color:nth-child(2) {
+    bottom: -150px;
+    left: 100px;
+    width: 500px;
+    height: 500px;
+    background: #008EE6;
+}
+
+section .color:nth-child(3) {
+    bottom: 50px;
+    right: 100px;
+    width: 500px;
+    height: 500px;
+    background: #008EE6;
+}
+
+.box {
+    position: relative;
+}
+
+/* 背景圓樣式 */
+
+.box .circle {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.1);
+    /* backdrop-filter屬性為一個元素後面區域新增模糊效果 */
+    backdrop-filter: blur(5px);
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    /* 使用filter(濾鏡) 屬性，改變顏色。
+    hue-rotate(deg)  給影象應用色相旋轉 
+    calc() 函式用於動態計算長度值 
+    var() 函式呼叫自定義的CSS屬性值x*/
+    filter: hue-rotate(calc(var(--x) * 70deg));
+    /* 呼叫動畫animate，需要10s完成動畫，
+    linear表示動畫從頭到尾的速度是相同的，
+    infinite指定動畫應該迴圈播放無限次*/
+    animation: animate 10s linear infinite;
+    /* 動態計算動畫延遲幾秒播放 */
+    animation-delay: calc(var(--x) * -1s);
+}
+
+/* 背景圓動畫 */
+
+
+.box .circle:nth-child(1) {
+    top: -50px;
+    right: -60px;
+    width: 100px;
+    height: 100px;
+}
+
+.box .circle:nth-child(2) {
+    top: 150px;
+    left: -100px;
+    width: 120px;
+    height: 120px;
+    z-index: 2;
+}
+
+.box .circle:nth-child(3) {
+    bottom: 50px;
+    right: -60px;
+    width: 80px;
+    height: 80px;
+    z-index: 2;
+}
+
+.box .circle:nth-child(4) {
+    bottom: -80px;
+    left: 100px;
+    width: 60px;
+    height: 60px;
+}
+
+.box .circle:nth-child(5) {
+    top: -80px;
+    left: 140px;
+    width: 60px;
+    height: 60px;
+}
+
+/* 登入框樣式 */
+
+.container {
+    position: relative;
+    width: 400px;
+    min-height: 400px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.form {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 50px;
+}
+
+/* 登入標題樣式 */
+
+.form h2 {
+    position: relative;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 5px;
+    margin-bottom: 30px;
+    cursor: pointer;
+}
+
+/* 登入標題的下劃線樣式 */
+
+.form h2::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -10px;
+    width: 0px;
+    height: 3px;
+    background: #fff;
+    transition: 0.5s;
+}
+
+.form h2:hover:before {
+    width: 53px;
+}
+
+.form .inputBox {
+    width: 100%;
+    margin-top: 20px;
+}
+
+/* 輸入框樣式 */
+
+.form .inputBox input {
+    width: 100%;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.2);
+    outline: none;
+    border: none;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: #fff;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.form .inputBox input::placeholder {
+    color: #fff;
+}
+
+/* 登入按鈕樣式 */
+
+.form .inputBox input[type="submit"] {
+    background: #fff;
+    color: #666;
+    max-width: 100px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.forget {
+    margin-top: 6px;
+    color: #fff;
+    letter-spacing: 1px;
+}
+
+.forget a {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+}

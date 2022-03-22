@@ -1,0 +1,587 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>AUO Vision Guard</title>
+    <link rel="stylesheet" href="static/icon/iconfont.css">
+    <script src="static/js/jquery.min.js"></script>
+    <script src="static/js/echarts.min.js"></script>
+</head>
+
+<body>
+
+    <from>
+        <div class="form_position">
+            <select id="form_list"></select>
+            <input type="button" value="OK" onclick="get_form_selection()">
+        </div>
+    </from>
+
+    <div class="container-header">
+        <ul class="nowTime">
+            <li></li>
+            <li></li>
+        </ul>
+        <h3>系統設定</h3>
+    </div>
+
+    <div class="count-logo">
+        <img src="static/images/AU-Optronics-Logo.svg.png" width="90%" height="60%">
+    </div>
+    <div class="container-content">
+        <div class="top">
+            <div class="count-base">
+                <div class="com-count-title">
+                    <a class="buttonCfg" href="/entrypoint">Back</a>
+                </div>
+            </div>
+            <div class="count-resource">
+            </div>
+        </div>
+
+        <div class="mid">
+            <div class="count-video_hd">
+                <div class="com-count-title">手部觸碰偵測設定</div>
+                <div class="com-screen-content">
+                    <!-- <img id="cameraHands" src="{{ url_for('video_feed_1') }}" width="90%" height="85%"> -->
+                    <canvas id="myCanvas2" style="width:90%;height:80%;"></canvas>
+                    <img src="/currentHandFrame" id="imgs2" style="display:none"></img>
+                    <!-- <img src="{{url_for('static', filename='test.jpg')}}" style="width:60%"> -->
+                    <span>
+                        <input type="button" value="Reset" style="width:5vw;height:1.5vw;font-size:1vw;"
+                            onclick="start_hand_label()">
+                        <input type="button" value="Save" style="width:5vw;height:1.5vw;font-size:1vw;"
+                            onclick="hand_OK()">
+                    </span>
+                </div>
+                <span class="left-top"></span>
+                <span class="right-top"></span>
+                <span class="left-bottom"></span>
+                <span class="right-bottom"></span>
+            </div>
+            <div class="count-event">
+                <div class="com-count-title">系統預覽圖</div>
+                <div class="com-screen-content">
+                    <img src="/perspective_transformation" style="width:13vw;height:13vw;border:4px rgb(0, 0, 0) solid;"
+                        id=transformation>
+                </div>
+                <span class="left-top"></span>
+                <span class="right-top"></span>
+                <span class="left-bottom"></span>
+                <span class="right-bottom"></span>
+            </div>
+            <div class="count-video_md ">
+                <div class="com-count-title">動作流程偵測設定</div>
+                <div class="com-screen-content">
+                    <!-- <img id="cameraFeed" src="{{ url_for('video_feed_0') }}" width="90%" height="85%"> -->
+                    <canvas id="myCanvas1" style="width:90%;height:80%;"></canvas>
+                    <img src="/currentMotionFrame" id="imgs1" style="display:none"></img>
+                    <span>
+                        <input type="button" value="Reset" style="width:5vw;height:1.5vw;font-size:1vw;"
+                            onclick="start_action_label()">
+                        <input type="button" value="Save" style="width:5vw;height:1.5vw;font-size:1vw;"
+                            onclick="action_OK()">
+                    </span>
+                </div>
+                <span class="left-top"></span>
+                <span class="right-top"></span>
+                <span class="left-bottom"></span>
+                <span class="right-bottom"></span>
+            </div>
+        </div>
+
+        <div class="bottom">
+        </div>
+        <div class="count-console">
+            <div class="com-count-title">Console</div>
+            <div class="com-screen-content">
+                <div class="topRec_List">
+                    <div class="maquee">
+                        <ul>
+                            <p id="configure_logs" style="font-size:30px;"></p>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <span class="left-top"></span>
+            <span class="right-top"></span>
+            <span class="left-bottom"></span>
+            <span class="right-bottom"></span>
+        </div>
+        <div class="clearfix"></div>
+    </div>
+</body>
+
+</html>
+
+<script type="text/javascript">
+    //根据不同的分辨率调用不同的css和js
+    document.write("<link href='static/css/test-1920.css' rel='stylesheet' type='text/css'>");
+    document.writeln("<script type=\"text/javascript\" src=\"static/js/test-1920.js\"><\/script>"); 
+</script>
+
+<script language="javascript">
+
+    var rec = [];
+    var zone = ["Work_Rack", "Jig", "Placement", "Finish"];
+    var text;
+    var pointOfTopLeft;
+    var pointOfTopRight;
+    var pointOfBottomLeft;
+    var pointOfBottomRight;
+    var totalPointsOfMotion = [];
+    var totalPoints = [];
+    var motionImg;
+    var handImg;
+
+    class consoleType {
+        static actionStart = "Motion Label Setting Reset Successfully!"
+        static handStart = "Hands View Calibration Setting Reset Successfully!"
+        static actionOK = "Motion Label Setting Save Successfully!"
+        static handOK = "Hands View Calibration Setting Save Successfully!"
+    }
+
+    class Rectangle {
+        constructor(zoneName, pointOfTopLeft, pointOfTopRight, pointOfBottomLeft, pointOfBottomRight) {
+            this.zoneName = zoneName
+            this.pointOfTopLeft = pointOfTopLeft
+            this.pointOfTopRight = pointOfTopRight
+            this.pointOfBottomLeft = pointOfBottomLeft
+            this.pointOfBottomRight = pointOfBottomRight
+        }
+    }
+
+    class Point {
+        constructor(x, y) {
+            this.x = x
+            this.y = y
+        }
+    }
+
+    function clear_form() {
+        const zoneSelect = document.querySelector(".form_position");
+        zoneSelect.style.display = "none";
+    }
+    function setup_form() {
+        var zoneSelect = document.getElementById("form_list");
+        var inner = "";
+        for (var i = 0; i < zone.length; i++) {
+            inner = inner + '<option value=+i+>' + zone[i] + '</option>';
+        }
+        zoneSelect.innerHTML = inner;
+    }
+    function clear_rectangle(c, w, h) {
+        c.clearRect(0, 0, w, h);
+    }
+    function setup_image(ctx, img) {
+        w = img.width
+        h = img.height
+        ctx.drawImage(img, 0, 0, w, h);
+    }
+    function draw_fixRectangle() {
+        var canvas1 = document.getElementById("myCanvas1");
+        var ctx1 = canvas1.getContext("2d");
+        ctx1.beginPath();
+        ctx1.lineWidth = "4";
+        ctx1.strokeStyle = "blue";
+        for (var i = 0; i < rec.length; i++) {
+            // Label 文字
+            ctx1.font = "40px sans-serif"
+            ctx1.fillStyle = "yellow";
+            ctx1.fillText(rec[i].zoneName, rec[i].pointOfTopLeft.x, rec[i].pointOfTopLeft.y);
+
+            // Label 畫線
+            ctx1.beginPath();
+            ctx1.fillStyle = "green";
+            ctx1.moveTo(rec[i].pointOfTopLeft.x, rec[i].pointOfTopLeft.y)
+            ctx1.lineTo(rec[i].pointOfTopRight.x, rec[i].pointOfTopRight.y)
+            ctx1.lineTo(rec[i].pointOfBottomLeft.x, rec[i].pointOfBottomLeft.y)
+            ctx1.lineTo(rec[i].pointOfBottomRight.x, rec[i].pointOfBottomRight.y)
+            ctx1.strokeStyle = 'blue';
+            ctx1.closePath();
+            ctx1.stroke();
+        }
+    }
+
+    function set_console() {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: "/read_console_config",
+            data: JSON.stringify("configure_logs"),
+            success: function (result) {
+                consoleID = document.getElementById("configure_logs");
+                for (var i = 0; i < result.length - 1; i++) {
+                    consoleDate = result[i].split(' ')[0];
+                    consoleTime = result[i].split(' ')[1];
+                    consoleEvent = result[i].replace(consoleDate, "");
+                    consoleEvent = consoleEvent.replace(consoleTime, "");
+                    consoleID.innerHTML = consoleID.innerHTML + '<li>' + '<div>' + consoleDate + '</div>' + '<div>' + consoleTime + '</div>' + '<div>' + consoleEvent + '</div>' + '</li>';
+                }
+            },
+            error: function (result) {
+                console.log("初始化失敗，請重新整理");
+            }
+        })
+    }
+
+    window.onload = function () {
+
+        var canvas1 = document.getElementById("myCanvas1");
+        var canvas2 = document.getElementById("myCanvas2");
+        var ctx1 = canvas1.getContext("2d");
+        var ctx2 = canvas2.getContext("2d");
+
+        motionImg = document.getElementById('imgs1')
+        handImg = document.getElementById('imgs2')
+        w = motionImg.width
+        h = motionImg.height
+        canvas1.width = w
+        canvas1.height = h
+        canvas2.width = w
+        canvas2.height = h
+        // 畫矩形
+        ctx1.drawImage(motionImg, 0, 0, w, h);
+        draw_defaultRecangle();
+
+        ctx2.drawImage(handImg, 0, 0, w, h);
+        draw_defaultPoint();
+
+        set_console()
+    };
+
+    function draw_defaultPoint() {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: "/read_hands_config",
+            success: function (result) {
+
+                var canvas2 = document.getElementById("myCanvas2");
+                var ctx2 = canvas2.getContext("2d");
+
+                // 畫圓
+                for (var coordinate of result) {
+                    point = new Point(Math.round(parseInt(coordinate[0], 10) / 1.6), Math.round(parseInt(coordinate[1], 10) / 1.6))
+                    totalPoints.push(point)
+                }
+
+                // 畫線
+                ctx2.beginPath();
+                ctx2.lineWidth = "4";
+                ctx2.strokeStyle = 'blue';
+                ctx2.moveTo(totalPoints[0].x, totalPoints[0].y)
+                for (var point of totalPoints) {
+                    ctx2.lineTo(point.x, point.y)
+                }
+                ctx2.closePath();
+                ctx2.stroke();
+            },
+            error: function (result) {
+                swal("初始化失敗，請重新整理", { button: "OK!" });
+            }
+        })
+    }
+
+    function draw_defaultRecangle() {
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: "/read_motion_config",
+            success: function (result) {
+                for (const rectangleInfo of result) {
+                    for (const [key, value] of Object.entries(rectangleInfo)) {
+                        if (typeof value == 'string') { // "zoneName": "Jig"
+                            text = value
+                        }
+                        else if (typeof value == 'object') { // "centerPoint": {"x": 529, "y": 122}
+                            switch (key) {
+                                case 'pointOfTopLeft':
+                                    pointOfTopLeft = new Point(Math.round(value['x'] / 1.6), Math.round(value['y'] / 1.6));
+                                    break;
+                                case 'pointOfTopRight':
+                                    pointOfTopRight = new Point(Math.round(value['x'] / 1.6), Math.round(value['y'] / 1.6));
+                                    break;
+                                case 'pointOfBottomLeft':
+                                    pointOfBottomLeft = new Point(Math.round(value['x'] / 1.6), Math.round(value['y'] / 1.6));
+                                    break;
+                                case 'pointOfBottomRight':
+                                    pointOfBottomRight = new Point(Math.round(value['x'] / 1.6), Math.round(value['y'] / 1.6));
+                                    break;
+                                default:
+                                    throw new Error('The format Of action_config.txt is error!');
+                            }
+                        }
+                    }
+                    rectangle = new Rectangle(text, pointOfTopLeft, pointOfTopRight, pointOfBottomLeft, pointOfBottomRight)
+                    rec.push(rectangle)
+                }
+                draw_fixRectangle()
+            },
+            error: function (result) {
+                swal("初始化失敗，請重新整理", { button: "OK!" });
+            }
+        })
+    }
+
+
+    function padLeft(str, len) {
+        str = '' + str;
+        return str.length >= len ? str : new Array(len - str.length + 1).join("0") + str;
+    }
+    // 寫入變動內容到console
+    function write_console(transformType) {
+
+        var today = new Date();
+        consoleDate = today.getFullYear() + '/' + (today.getMonth() + 1) + '/' + today.getDate();
+        consoleTime = padLeft(today.getHours(), 2) + ':' + padLeft(today.getMinutes(), 2) + ':' + padLeft(today.getSeconds(), 2);
+
+        consoleID = document.getElementById("configure_logs")
+        switch (transformType) {
+            case 'actionStart':
+                consoleEvent = consoleType.actionStart;
+                break;
+            case 'handStart':
+                consoleEvent = consoleType.handStart;
+                break;
+            case 'actionOK':
+                consoleEvent = consoleType.actionOK;
+                break;
+            case 'handOK':
+                consoleEvent = consoleType.handOK;
+                break;
+            default:
+                break;
+                // log
+                // throw new Error('consoleEvent is not defined'); 
+        }
+        consoleID.innerHTML = consoleID.innerHTML + '<li>' + '<div>' + consoleDate + '</div>' + '<div>' + consoleTime + '</div>' + '<div>' + consoleEvent + '</div>' + '</li>';
+        consoleContent = consoleDate + " " + consoleTime + " " + consoleEvent;
+
+        // 跳轉存四個作業區的值
+        $.ajax({
+            type: "POST",
+            url: "/download_console",
+            data: JSON.stringify({ "text": consoleContent, "consoleType": 'configure_logs' }),
+            success: function (data) {
+                console.log("儲存成功");
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                //alert(errorThrown);
+                console.log("儲存失敗");
+            }
+        });
+    }
+
+    ///// 動作標框 //////
+    function start_action_label() {
+
+        write_console("actionStart");
+
+        rec.length = 0;
+        totalPointsOfMotion.length = 0;
+        setup_form();
+        clear_form();
+        var canvas1 = document.getElementById("myCanvas1");
+        var ctx1 = canvas1.getContext("2d");
+        clear_rectangle(ctx1, canvas1.width, canvas1.height);
+        setup_image(ctx1, motionImg);
+        canvas1.addEventListener('click', draw_point_motion, false);
+    }
+    function draw_point_motion(e) {
+        var sel = document.getElementById("form_list");
+        if (sel.options.length == 0) {
+            canvas1.removeEventListener("click", draw_point_motion, false);
+        }
+
+        var canvas1 = document.getElementById("myCanvas1");
+        var ctx1 = canvas1.getContext("2d");
+        var canvasBox = canvas1.getBoundingClientRect();
+        var ratioOfWidth = canvas1.width / canvasBox.width;
+        var ratioOfHeight = canvas1.height / canvasBox.height;
+        point = new Point(ratioOfWidth * (e.pageX - canvasBox.left), ratioOfHeight * (e.pageY - canvasBox.top));
+
+        totalPointsOfMotion.push(point);  // 存入List
+        ctx1.beginPath();
+        ctx1.arc(point.x, point.y, 10, 0, 2 * Math.PI);
+        ctx1.fill();
+        ctx1.stroke();
+
+        ctx1.beginPath();
+        ctx1.lineWidth = "4";
+        ctx1.strokeStyle = 'blue';
+        ctx1.moveTo(totalPointsOfMotion[0].x, totalPointsOfMotion[0].y)
+        for (var i = 1; i < totalPointsOfMotion.length; i++) {
+            ctx1.lineTo(totalPointsOfMotion[i].x, totalPointsOfMotion[i].y)
+        }
+        if (totalPointsOfMotion.length % 4 == 0) {
+            ctx1.closePath();
+            const zoneSelect = document.querySelector(".form_position");
+            zoneSelect.style.left = (totalPointsOfMotion[0].x + canvasBox.left) + "px";
+            zoneSelect.style.top = (totalPointsOfMotion[0].y + canvasBox.top) + "px";
+            zoneSelect.style.display = "initial";
+            canvas1.removeEventListener("click", draw_point_motion, false);
+        }
+        ctx1.stroke();
+    }
+
+    function get_form_selection() {
+        clear_form()
+        var sel = document.getElementById("form_list");
+        var text = sel.options[sel.selectedIndex].text;
+        pointOfTopLeft = totalPointsOfMotion.shift();
+        pointOfTopRight = totalPointsOfMotion.shift();
+        pointOfBottomLeft = totalPointsOfMotion.shift();
+        pointOfBottomRight = totalPointsOfMotion.shift();
+        rectangle = new Rectangle(text, pointOfTopLeft, pointOfTopRight, pointOfBottomLeft, pointOfBottomRight);
+        rec.push(rectangle);
+        sel.remove(sel.selectedIndex);
+        draw_fixRectangle();
+
+        var canvas1 = document.getElementById("myCanvas1");
+        canvas1.addEventListener('click', draw_point_motion, false);
+    }
+
+    ///// 手部標框 //////
+    function start_hand_label() {
+
+        write_console("handStart");
+
+        totalPoints.length = 0;
+
+        var canvas2 = document.getElementById("myCanvas2");
+        var ctx2 = canvas2.getContext("2d");
+
+        clear_rectangle(ctx2, canvas2.width, canvas2.height);
+        setup_image(ctx2, handImg);
+
+        canvas2.addEventListener('click', draw_point, false);
+    }
+    function draw_point(e) {
+        var canvas2 = document.getElementById("myCanvas2");
+        var ctx2 = canvas2.getContext("2d");
+        var canvasBox = canvas2.getBoundingClientRect();
+        var ratioOfWidth = canvas2.width / canvasBox.width;
+        var ratioOfHeight = canvas2.height / canvasBox.height;
+        point = new Point(ratioOfWidth * (e.pageX - canvasBox.left), ratioOfHeight * (e.pageY - canvasBox.top));
+        totalPoints.push(point);
+
+        ctx2.beginPath();
+        ctx2.arc(point.x, point.y, 10, 0, 2 * Math.PI);
+        ctx2.fillStyle = 'green';
+        ctx2.fill();
+        ctx2.stroke();
+
+        ctx2.beginPath();
+        ctx2.lineWidth = "4";
+        ctx2.strokeStyle = 'blue';
+        ctx2.moveTo(totalPoints[0].x, totalPoints[0].y);
+        for (var i = 1; i < totalPoints.length; i++) {
+            ctx2.lineTo(totalPoints[i].x, totalPoints[i].y);
+        }
+        if (totalPoints.length == 4) {
+            ctx2.closePath();
+            canvas2.removeEventListener('click', draw_point, false);
+        }
+        ctx2.stroke();
+    }
+
+    function hand_OK() {
+
+        if (totalPoints.length != 4) {
+            swal("錯誤", "未標記四個點", "error", { button: "OK!" });
+        }
+        else {
+
+            write_console("handOK")
+
+            var canvas2 = document.getElementById("myCanvas2");
+            var ctx2 = canvas2.getContext("2d");
+            ctx2.beginPath();
+            ctx2.lineWidth = "4";
+            ctx2.strokeStyle = 'blue';
+            ctx2.moveTo(totalPoints[0].x, totalPoints[0].y)
+            for (var i = 1; i < totalPoints.length; i++) {
+                ctx2.lineTo(totalPoints[i].x, totalPoints[i].y)
+            }
+            ctx2.closePath()
+            ctx2.stroke();
+
+            // 跳轉存四個點的值
+            point = []
+            for (var i = 0; i < totalPoints.length; i++) {
+                point.push(Math.round(totalPoints[i].x * 1.6) + " " + Math.round(totalPoints[i].y * 1.6));
+            }
+
+            $.ajax({
+                type: "POST",
+                url: "/perspective_transformation"
+            });
+
+            window.setTimeout(function () {
+                img = document.getElementById('transformation')
+                img.src = '/perspective_transformation'
+            }, 10);
+
+            $.ajax({
+                type: "POST",
+                url: "/hand_submit",
+                data: JSON.stringify(point),
+                success: function (data) {
+                    swal("儲存成功", { button: "OK!" });
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    //alert(errorThrown);
+                    swal("儲存失敗", { button: "OK!" });
+                }
+            });
+        }
+    }
+
+    function action_OK() {
+
+        var sel = document.getElementById("form_list");
+        if (sel.options.length == 0) {
+
+            write_console("actionOK")
+
+            // 跳轉存四個作業區的值
+            var rectangleInfo = []
+            for (var i = 0; i < rec.length; i++) {
+                rectangleInfo.push(rec[i].zoneName + " " + Math.round(rec[i].pointOfTopLeft.x * 1.6) + " " + Math.round(rec[i].pointOfTopLeft.y * 1.6) + " " +
+                    Math.round(rec[i].pointOfTopRight.x * 1.6) + " " + Math.round(rec[i].pointOfTopRight.y * 1.6) + " " +
+                    Math.round(rec[i].pointOfBottomLeft.x * 1.6) + " " + Math.round(rec[i].pointOfBottomLeft.y * 1.6) + " " +
+                    Math.round(rec[i].pointOfBottomRight.x * 1.6) + " " + Math.round(rec[i].pointOfBottomRight.y * 1.6));
+            }
+            console.log(rectangleInfo);
+            $.ajax({
+                type: "POST",
+                url: "/action_submit",
+                data: JSON.stringify(rectangleInfo),
+                success: function (data) {
+                    swal("儲存成功", { button: "OK!" });
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    //alert(errorThrown);
+                    swal("儲存失敗", { button: "OK!" });
+                }
+            });
+        }
+        else {
+            swal("錯誤", "未標記四個作業區", "error", { button: "OK!" });
+        }
+    }
+
+    function autoScroll(obj) {
+        $(obj).find("ul").animate({
+            marginTop: "-39px"
+        }, 500, function () {
+            $(this).css({ marginTop: "0px" }).find("li:first").appendTo(this);
+        })
+    }
+    $(function () {
+        setInterval('autoScroll(".maquee")', 2000);
+    })
+
+</script>

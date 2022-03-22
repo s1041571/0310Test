@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>AUO Vision Guard</title>
+	<link rel="stylesheet" href="static/icon/iconfont.css">
+	<script src="static/js/jquery.min.js"></script>
+	<script src="static/js/echarts.min.js"></script>
+	<script src='static/js/sound.js' crossorigin='anonymous'></script>
+</head>
+
+<body>
+	<div class="container-header">
+		<ul class="nowTime">
+			<li></li>
+			<li></li>
+		</ul>
+		<h3>影像異常監控平台</h3>
+	</div>
+
+	<div class="count-logo">
+		<img src="static/images/AU-Optronics-Logo.svg.png" width="90%" height="60%">
+	</div>
+	<div class="container-content">
+		<div class="top">
+			<div class="count-base">
+				<div class="com-count-title">
+					<a class="buttonCfg" href="/sec_page">Configure</a>
+				</div>
+			</div>
+			<div class="count-resource">
+			</div>
+		</div>
+
+		<div class="mid">
+			<div class="count-video_hd">
+				<div class="com-count-title">手部異常偵測
+					<button style='font-size:24px' type="button" onclick="set_hands_soundFlag()"><i
+							class='fas fa-volume-up' id="hands_sound"></i></button>
+				</div>
+				<div class="com-screen-content">
+					<img id="cameraHands" src="{{ url_for('video_feed_1') }}" width="90%" height="85%">
+				</div>
+				<span class="left-top"></span>
+				<span class="right-top"></span>
+				<span class="left-bottom"></span>
+				<span class="right-bottom"></span>
+			</div>
+			<div class="count-video_md ">
+				<div class="com-count-title">動作流程偵測
+					<a class="buttonShutd" href="#" onclick="shutdown()">Stop</a>
+					<a class="buttonRestart" href="#" onclick="restart()">Start</a>
+					<button style='font-size:24px' type="button" onclick="set_motion_soundFlag()"><i
+							class='fas fa-volume-up' id="motion_sound"></i></button>
+					<a id="detectionStatus" style="color:white;"></a>
+				</div>
+				<div class="com-screen-content">
+					<img id="cameraFeed" src="{{ url_for('video_feed_0') }}" width="90%" height="85%">
+				</div>
+				<span class="left-top"></span>
+				<span class="right-top"></span>
+				<span class="left-bottom"></span>
+				<span class="right-bottom"></span>
+			</div>
+
+			<div class="count-event">
+				<div class="com-count-title">動作流程狀態</div>
+				<div class="com-screen-content">
+					<!-- <img id="cameraFeed1" src="{{ url_for('video_feed_1') }}" width="90%" height="90%"> -->
+					<p id="start" style="font-size:1.0vw;color:white;" class="start_and_end">Start</p>
+					<p id="Step_result1" style="font-size:1.0vw;color:white;">Step 1. Work_Rack to Jig</p>
+					<p id="Step_result2" style="font-size:1.0vw;color:white;">Step 2. Jig to Finish</p>
+					<p id="Step_result3" style="font-size:1.0vw;color:white;">Step 3. Placement to Jig</p>
+					<p id="Step_result4" style="font-size:1.0vw;color:white;">Step 4. Jig to Work_Rack</p>
+					<p id="end" style="font-size:1.0vw;color:white;" class="start_and_end">End</p>
+				</div>
+				<span class="left-top"></span>
+				<span class="right-top"></span>
+				<span class="left-bottom"></span>
+				<span class="right-bottom"></span>
+			</div>
+		</div>
+
+		<div class="bottom">
+		</div>
+		<div class="count-console_hd">
+			<div class="com-count-title">Hands Console</div>
+			<div class="com-screen-content">
+				<div class="topRec_List">
+					<dl>
+						<dd>日期</dd>
+						<dd>時間</dd>
+						<dd>違規狀況</dd>
+					</dl>
+					<div class="maquee">
+						<ul>
+							<p id="consoleHD" style="font-size:30px;">
+								<!-- <li>
+									<div> 123 </div>
+									<div> 123 </div>
+									<div> 123 </div>
+								</li> -->
+							</p>
+						</ul>
+					</div>
+				</div>
+			</div>
+			<span class="left-top"></span>
+			<span class="right-top"></span>
+			<span class="left-bottom"></span>
+			<span class="right-bottom"></span>
+		</div>
+		<div class="count-console_md">
+			<div class="com-count-title">Motion Console</div>
+			<div class="com-screen-content">
+				<div class="topRec_List">
+					<dl>
+						<dd>日期</dd>
+						<dd>時間</dd>
+						<dd>違規狀況</dd>
+					</dl>
+					<div class="maquee">
+						<ul>
+							<p id="consoleMD" style="font-size:30px;">
+								<!-- <li>
+									<div> 123 </div>
+									<div> 123 </div>
+									<div> 123 </div>
+								</li> -->
+							</p>
+						</ul>
+					</div>
+				</div>
+			</div>
+			<span class="left-top"></span>
+			<span class="right-top"></span>
+			<span class="left-bottom"></span>
+			<span class="right-bottom"></span>
+		</div>
+		<div class="clearfix"></div>
+
+
+	</div>
+
+	<script type="text/javascript">
+		//根据不同的分辨率调用不同的css和js
+		document.write("<link href='static/css/test-1920.css' rel='stylesheet' type='text/css'>");
+		document.writeln("<script type=\"text/javascript\" src=\"static/js/test-1920.js\"><\/script>");
+	</script>
+	<!--console浮動-->
+	<script type="text/javascript">
+
+		function autoScroll(obj) {
+			$(obj).find("ul").animate({
+				marginTop: "-39px"
+			}, 500, function () {
+				$(this).css({ marginTop: "0px" }).find("li").appendTo(this);
+			})
+		}
+
+		function shutdown() {
+			var detectionStatus = document.getElementById('detectionStatus');
+			detectionStatus.innerHTML = 'shutdown';
+
+			var stepEnd = document.getElementById('end');
+			stepEnd.style.display = "none";
+			var stepStart = document.getElementById('start');
+			stepStart.style.display = "none";
+			for (var j = 1; j <= 4; j++) {
+				var stepConsole = document.getElementById(`Step_result${j}`);
+				stepConsole.style = "font-size:1vw;color:white;"
+			}
+			$.ajax({
+				type: "POST",
+				url: "/open_motion_detection",
+				data: JSON.stringify(false)
+			});
+		}
+
+		function set_motion_soundFlag() {
+			var temp = document.getElementById("motion_sound").className;
+			document.getElementById("motion_sound").className = (temp == "fas fa-volume-mute") ? "fas fa-volume-up" : "fas fa-volume-mute";
+
+			$.ajax({
+				type: "POST",
+				url: "/sound_switch",
+				data: JSON.stringify("motion")
+			});
+		}
+
+		function set_hands_soundFlag() {
+			var temp = document.getElementById("hands_sound").className;
+			document.getElementById("hands_sound").className = (temp == "fas fa-volume-mute") ? "fas fa-volume-up" : "fas fa-volume-mute";
+
+			$.ajax({
+				type: "POST",
+				url: "/sound_switch",
+				data: JSON.stringify("hands")
+			});
+		}
+
+		function restart() {
+			var detectionStatus = document.getElementById('detectionStatus');
+			detectionStatus.innerHTML = 'restart';
+
+			$.ajax({
+				type: "POST",
+				url: "/open_motion_detection",
+				data: JSON.stringify(true)
+			});
+		}
+
+		function padLeft(str, len) {
+			str = '' + str;
+			return str.length >= len ? str : new Array(len - str.length + 1).join("0") + str;
+		}
+
+		// alarm 寫入 abnormal_config.txt
+		function write_console(stepNum, mode) {
+			var timestamp = new Date();
+			consoleDate = timestamp.getFullYear() + '/' + (timestamp.getMonth() + 1) + '/' + timestamp.getDate();
+			consoleTime = padLeft(timestamp.getHours(), 2) + ':' + padLeft(timestamp.getMinutes(), 2) + ':' + padLeft(timestamp.getSeconds(), 2);
+			if (mode == "motion") {
+				consoleEvent = "Step" + stepNum + " is Abnormal Motion!";
+				consoleID = document.getElementById("consoleMD");
+			}
+			else if (mode == "hands") {
+				consoleEvent = "Hands Abnormal Touching!";
+				consoleID = document.getElementById("consoleHD");
+			}
+			autoScroll(".maquee")
+			consoleID.innerHTML = `<li><div>${consoleDate}</div><div>${consoleTime}</div><div>${consoleEvent}</div></li>`;
+
+			consoleContent = consoleDate + " " + consoleTime + " " + consoleEvent;  //要寫入txt的內容
+			$.ajax({
+				type: "POST",
+				url: "/download_console",
+				data: JSON.stringify({ "text": consoleContent, "consoleType": mode == 'motion' ? 'motion_logs' : 'hands_logs' }),
+				success: function (data) {
+					// log
+				},
+				error: function (jqXHR, textStatus, errorThrown) {
+					// log
+				}
+			});
+		}
+
+		// 顯示動作檢測及果
+		function motion_result() {
+			$.ajax({
+				type: "POST",
+				dataType: "json",
+				url: "/motion_result",
+				success: function (result) {
+					for (var i = 0; i < result['step_num'].length; i++) {
+						if (result['step_num'][i] == -1) {
+							continue;
+						}
+						if (result['step_num'][i] == '4') {
+							var stepEnd = document.getElementById('end');
+							stepEnd.style.display = "block";
+						}
+						if (result['step_num'][i] == '1') {
+							for (var j = 1; j <= 4; j++) {
+								var stepConsole = document.getElementById(`Step_result${j}`);
+								stepConsole.style = "font-size:1vw;color:white;"
+							}
+							var stepEnd = document.getElementById('end');
+							stepEnd.style.display = "none";
+							var stepStart = document.getElementById('start');
+							stepStart.style.display = "block";
+						}
+						if (result['step_result'][i] == "NO") {
+							var stepConsole = document.getElementById(`Step_result${result['step_num'][i]}`);
+							stepConsole.style = "color:green;font-size:1vw;";
+						}
+						if (result['step_result'][i] == "YES") {
+							var stepConsole = document.getElementById(`Step_result${result['step_num'][i]}`);
+							stepConsole.style = "color:red;font-size:1vw;";
+							write_console(result['step_num'][i], "motion");
+						}
+					}
+				},
+				error: function (result) {
+					// log
+				}
+			})
+		}
+
+		// 顯示動作檢測及果
+		function hands_result() {
+			$.ajax({
+				type: "POST",
+				dataType: "json",
+				url: "/hands_result",
+				success: function (judgeFlag) {
+					if (judgeFlag) {
+						write_console("0", "hands");
+					}
+				},
+				error: function (judgeFlag) {
+					// log
+				}
+			})
+		}
+
+		// for motions
+		window.setInterval(function () {
+			motion_result();
+			hands_result();
+		}, 300);
+
+		window.setInterval(function () {
+			$("#now_time").load("/now_time.txt");
+		}, 1000)
+
+	</script>
+</body>
+
+</html>

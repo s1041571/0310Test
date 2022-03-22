@@ -1,0 +1,61 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+
+block_cipher = None
+
+
+a = Analysis(['Server.py', 'Camera.py', 'Config.py'],
+             pathex=['C:\\Users\\LEADTEK\\anaconda3\\envs\\yolov5\\Lib\\site-packages\\', 
+             'D:\\AUO_Vision_Guard_v1.2_src\\AIModule\\',
+             'D:\\AUO_Vision_Guard_v1.2_src\\AIModule\\models',
+             'D:\\AUO_Vision_Guard_v1.2_src\\AIModule\\utils',
+             'D:\\AUO_Vision_Guard_v1.2_src\\Logger\\'],
+             binaries=[],
+             datas=[('D:\\AUO_Vision_Guard_v1.2_src\\config\\*.txt','.\\config'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\config\\*.jpg','.\\config'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\config\\setting.cfg','.\\config'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\config\\*.jpeg','.\\config'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\css\\*.css','.\\static\\css'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\font\\*.ttf','.\\static\\font'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\icon\\*.css','.\\static\\icon'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\images\\*.jpg','.\\static\\images'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\images\\*.png','.\\static\\images'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\js\\*.js','.\\static\\js'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\sound\\*.mp3','.\\static\\sound'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\static\\sound\\*.wav','.\\static\\sound'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\templates\\*.html','.\\templates'),
+            ('D:\\AUO_Vision_Guard_v1.2_src\\weights\\*.pt','.\\weights')],
+             hiddenimports=['intel-openmp'],
+             hookspath=[],
+             runtime_hooks=[],
+             excludes=[],
+             win_no_prefer_redirects=False,
+             win_private_assemblies=False,
+             cipher=block_cipher,
+             noarchive=False)
+pyz = PYZ(a.pure, a.zipped_data,
+             cipher=block_cipher)
+
+exe = EXE(pyz,
+          a.scripts, 
+          [],
+          exclude_binaries=True,
+          name='Server',
+          debug=False,
+          bootloader_ignore_signals=False,
+          strip=False,
+          upx=True,
+          console=True,
+          icon='AULOGO.ico', 
+          disable_windowed_traceback=False,
+          target_arch=None,
+          codesign_identity=None,
+          entitlements_file=None )
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas, 
+               strip=False,
+               upx=True,
+               upx_exclude=[],
+               name='Server')

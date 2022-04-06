@@ -60,7 +60,7 @@ def InitGlbVar():
 @app.route("/entrypoint", methods=['GET'])
 def entrypoint():
     Frame.initialize_label() # 子頁面修改label後，要更新model作業區位置
-    motionDetection.processDetection.currentStep.number = 0
+    motionDetection.initialize_parameter()
     motionDetection.waitStep1 = True
     return render_template("index.html", user_time=system_time_info())
 
@@ -121,7 +121,7 @@ def open_motion_detection():
     if request.method == "POST":
         motionDetectionOpened = request.get_json(force=True)
         if motionDetectionOpened:
-            motionDetection.processDetection.currentStep.number = 0
+            motionDetection.initialize_parameter()
             motionDetection.waitStep1 = True
 
 @app.route("/motion_result", methods=['POST']) 

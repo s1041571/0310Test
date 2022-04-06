@@ -55,19 +55,26 @@ class Label:
     type3 = "frame"
     order = [type1, type2, type3, type2, type1]
 
+    _instance = None 
+
     def __init__(self, previous, current):
         self.previous = previous
         self.current = current
 
     @classmethod
     def initialize(cls):
-        return cls(cls.type1, cls.type1)
-
-    def is_not_same_label(self, step):
-        if self.previous == step.previousLabel and self.current == step.currentLabel:
-            return "NO"
+        if Label._instance == None:
+            Label._instance = cls(cls.type1, cls.type1)
         else:
-            return "YES"  
+            Label._instance.previous = Label.order[0]
+            Label._instance.current = Label.order[0]    
+        return Label._instance
+
+    def is_same_label(self, step):
+        if self.previous == step.previousLabel and self.current == step.currentLabel:
+            return True
+        else:
+            return False 
 
     def get_Jig_label(self, yoloResult, allRectangleInfo):
         if len(yoloResult["coordinate"]) == 1:
@@ -83,6 +90,9 @@ class Label:
         self.current = jigCurrentLabel if jigCurrentLabel is not None else self.current
 
 class Step:
+
+    _instance = None 
+
     def __init__(self, number, label):
         self.number = number
         self.previousLabel = label.previous
@@ -90,12 +100,28 @@ class Step:
 
     @classmethod
     def initialize(cls):
-        return cls(0, Label.initialize())
+        if Step._instance == None:
+            Step._instance = cls(0, Label.initialize())
+        else:
+            Step._instance.number = 0
+            Step._instance.previousLabel = Label.order[0]
+            Step._instance.currentLabel = Label.order[0]
+        return Step._instance
 
     def update_info(self):
         self.number += 1 
         self.previousLabel = Label.order[self.number-1]
         self.currentLabel = Label.order[self.number]
+
+    def back_to_previousStep(self):
+        self.number -= 1 
+        try:
+            self.previousLabel = Label.order[self.number-1]
+            self.currentLabel = Label.order[self.number]
+        except: # self.number == 0
+            self.number = 4
+            self.previousLabel = Label.order[self.number]
+            self.currentLabel = Label.order[self.number]   
 
     @staticmethod
     def goto_next(jigLabel):

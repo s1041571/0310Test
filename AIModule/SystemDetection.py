@@ -71,12 +71,12 @@ class ProcessDetection:
         self.jigLabel = Label.initialize()
         self.currentStep = Step.initialize()
 
-        self.OKRecord = False
-        self.ErrorRecord = False
-        self.OKCount = 0
-        self.ErrorCount = 0
-        self.ErrorType = None
-        self.arrivalStep = 0
+        self.__record = {"OK":False, "Alarm":False}
+        self.__FrameCount = {"OK":0, "Alarm":0}
+        self.__AlarmType = None
+        self.__arrivalStep = 0 
+
+        # self.waitStep1 = True 
 
     def is_first_step(self):
         if self.jigLabel.previous == Label.type1: 
@@ -96,7 +96,7 @@ class ProcessDetection:
             return True
 
     def run(self, yoloResult):
-
+        
         if self.is_final_step == True:
             self.currentStep = Step.initialize()
             
@@ -109,38 +109,37 @@ class ProcessDetection:
 
             self.currentStep.update_info()
 
-            if self.jigLabel.is_not_same_label(self.currentStep) == "YES":
-                self.currentStep.back_to_previousStep() # 不更新目前狀態
-                if self.jigLabel.is_not_same_label(self.currentStep) == "YES":
-                    self.ErrorRecord = True
-                    self.ErrorType = self.jigLabel.current  
-                else:
-                    self.ErrorRecord = False
-                    self.ErrorCount = 0  
+            self.__record = {"OK":False, "Alarm":False}
+            self.__FrameCount = {"OK":0, "Alarm":0}
+
+            if self.jigLabel.is_same_label(self.currentStep):
+                self.__record["OK"] = True
             else:
-                self.OKRecord = True
-                self.OKCount += 1
-        
+                self.currentStep.back_to_previousStep() # 不更新目前狀態
+                if self.jigLabel.is_same_label(self.currentStep):
+                    self.__record["OK"] = True
+                else:
+                    self.__record["Alarm"] = True
+                    self.__AlarmType = self.jigLabel.current 
+
         else:
-            if self.OKRecord:
-                if self.OKCount > 2: #5
-                    if not self.arrivalStep == self.currentStep.number:
-                        self.OKRecord = False
-                        self.OKCount = 0
-                        self.arrivalStep = self.currentStep.number
-                        return "NO", self.currentStep.number
+            if self.__record["OK"]:
+                if self.__FrameCount["OK"] > 1: #5
+                    if self.__arrivalStep != self.currentStep.number:
+                        self.__record["OK"] = False
+                        self.__arrivalStep = self.currentStep.number
+                        return "NO", self.currentStep.number 
                 else:
                     if self.jigLabel.current == self.currentStep.currentLabel:
-                        self.OKCount += 1
-            elif self.ErrorRecord:
-                if self.ErrorCount > 5: #30
-                    self.ErrorRecord = False
-                    self.ErrorCount = 0
+                        self.__FrameCount["OK"] += 1
+            elif self.__record["Alarm"]:
+                if self.__FrameCount["Alarm"] > 5: #30
+                    self.__record["Alarm"] = False
                     return "YES", self.currentStep.number
                 else:
-                    if self.jigLabel.current == self.ErrorType:
-                        self.ErrorCount += 1 
-        
+                    if self.jigLabel.current == self.__AlarmType:
+                        self.__FrameCount["Error"] += 1 
+
         return "NONE", self.currentStep.number
 
 class Motion:
@@ -149,96 +148,72 @@ class Motion:
         self.model = model
         self.processDetection = ProcessDetection()
         self.placementDetection = PlacementDetection()
-        self.q = []
-        self.temp1 = False
+        self.storgeOfVideoFrames = []
         self.haveAlarm = False
         self.needRecord = False
-        self.waitStep1 = True
-        self.initialize_parameter()
         self.recordPath = recordPath
-        self.getFirstStep = False
+        self.needJudgementStep4 = False
+        self.initialize_parameter()
+
+        self.waitStep1 = True
 
     def initialize_parameter(self):
-        # self.q.clear()
-        self.processDetection.currentStep.number = 0
-        self.centerPointAToD = 0
+        self.processDetection.currentStep = Step.initialize()
+        self.centerPointAToD = -10000
         self.processEnd = False
-        self.placementOK = {"A":False, "C1":False, "C2":False, "D":False}
+        self.placementOK = {"A":False, "C":False, "D":False}
         self.waitCorrection = {"A":False, "D":False}
-        self.getFirstStep = False
         
     def run(self, image):
 
-        self.q.append(image)
+        self.storgeOfVideoFrames.append(image)
 
         # 跑YOLO
         yoloResult = self.model.detect_motion(image)
-        # print(f'yoloResult: {yoloResult}', self.processDetection.currentStep.number)
-
-        if self.processDetection.currentStep.number == 0 and self.waitStep1:
-            if len(yoloResult["coordinate"]) == 1: 
-                for rectangle in Frame.BBoxInfo:
-                    if rectangle.zoneName == "Jig":
-                        BBox = rectangle
-
-                if not (BBox.contains_point(yoloResult["coordinate"][0].centerPoint) and yoloResult["label"][0] == "no_PCB"):
-                    self.q = []
-                    self.temp1 = False
-                    self.haveAlarm = False
-                    self.needRecord = False
-                    self.centerPointAToD = 0
-                    self.processEnd = False
-                    self.placementOK = {"A":False, "C1":False, "C2":False, "D":False}
-                    self.waitCorrection = {"A":False, "D":False}
-                    return ['NONE'], [-1]
-                else:
-                    self.waitStep1 = False    
-                    self.processDetection.jigLabel.previous = Label.type1
-                    self.processDetection.jigLabel.current = Label.type1
-            else:
-                return ['NONE'], [-1]
-
 
         if self.processEnd: # processDetection.is_final_step
             if self.needRecord:
                 self.needRecord = False
-                temp = copy.deepcopy(self.q)
+                temp = copy.deepcopy(self.storgeOfVideoFrames)
                 save_video(datetime.now(), temp, self.recordPath) 
             self.initialize_parameter()  
-            self.q.clear()
+            self.storgeOfVideoFrames.clear()
             self.haveAlarm = False
             self.needRecord = False
 
-        if self.processDetection.currentStep.number == 0 and yoloResult["label"][0] != "no_PCB" and not self.getFirstStep:
-            self.processDetection.currentStep.number = 0
-            self.processDetection.currentStep.previousLabel = Label.type1
-            self.processDetection.currentStep.currentLabel = Label.type1
-            return ['NONE'], [-1]
-        elif self.processDetection.currentStep.number == 0 and yoloResult["label"][0] == "no_PCB":
-            self.processDetection.jigLabel.previous = Label.type1
-            self.processDetection.jigLabel.current = Label.type1
-            self.getFirstStep = True
+        # 等待第一步開始
+        if self.waitStep1:
+            if self.processDetection.currentStep.number == 0 and yoloResult["label"][0] != "no_PCB":
+                self.waitStep1 = True
+                return ['NONE'], [-1]
+            elif self.processDetection.currentStep.number == 0 and yoloResult["label"][0] == "no_PCB":
+                self.waitStep1 = False
+                self.processDetection.currentStep = Step.initialize()
+                self.processDetection.jigLabel = Label.initialize()
+                self.storgeOfVideoFrames.clear()
+                self.haveAlarm = False
+                self.needRecord = False
+                self.needJudgementStep4 = False
 
-        isAnomalyStep, numOfCurrentStep = self.processDetection.run(yoloResult)    
+        isAnomalyStep, numOfCurrentStep = self.processDetection.run(yoloResult) 
+        # print(f'isAnomalyStep: {isAnomalyStep}, numOfCurrentStep: {numOfCurrentStep}')
 
-        #################################################### 用放置去判斷是否正確 ################################################################    
-        if self.processDetection.currentStep.number == 0:
-            if not self.placementOK["C2"] and self.temp1:
-                C2_placementOK = self.placementDetection.put_to_zone(Zone.C, yoloResult)
-                if C2_placementOK:
-                    self.placementOK["C2"] = True
+        #################################################### 用"放置"去判斷是否正確 ################################################################    
+        ### 第0步至第1步 ###
+        if numOfCurrentStep == 0:    # 第1步和第4步一起判斷，有無放到C區
+            if not self.placementOK["C"]:
+                self.placementOK["C"] = self.placementDetection.put_to_zone(Zone.C, yoloResult)
+            else:
+                # 判第4步是否異常
+                if self.needJudgementStep4:
                     self.processEnd = True
-                    self.temp1 = False
-                    return ["NO"], [4]
-            if not self.placementOK["C1"]:
-                C1_placementOK = self.placementDetection.put_to_zone(Zone.C, yoloResult)
-                if C1_placementOK:
-                    self.placementOK["C1"] = True
-                    # return ["NO"], [numOfCurrentStep]
+                    self.needJudgementStep4 = False
+                    return ["NO"], [4]  
+        
+        ### 目前步驟待定 : step. 2 要不斷去判斷 D與A區的狀態 ###
+        elif numOfCurrentStep == 2:
 
-        # 目前步驟待定 : step. 2 要不斷去判斷 D與A區的狀態
-        elif self.processDetection.currentStep.number == 2:
-
+            # 如果前幾步有Alarm就直接錯
             if self.haveAlarm:
                 if isAnomalyStep == 'NONE':
                     return ["NONE"], [numOfCurrentStep]
@@ -246,129 +221,95 @@ class Motion:
                     return ["YES"], [numOfCurrentStep]
 
             # 判斷A區->D區 (第二步補救)
-            if self.waitCorrection['D']:
-                if not self.placementOK['A']:
-                    A_placementOK = self.placementDetection.put_to_zone(Zone.A, yoloResult)
-                    if A_placementOK:
-                        self.placementOK['A'] = True
+            elif self.waitCorrection['D']:
+                if not self.placementOK['D']:
+                    if not self.placementOK['A']:
+                        self.placementOK['A'] = self.placementDetection.put_to_zone(Zone.A, yoloResult)
+                    else:
                         self.centerPointAToD = 0
-                elif self.placementOK['A']:
-                    D_placementOK = self.placementDetection.put_to_zone(Zone.D, yoloResult)
-                    if D_placementOK and self.centerPointAToD > 0: #已正確修正(A區->D區)
+                        self.placementOK['D'] = self.placementDetection.put_to_zone(Zone.D, yoloResult)
+                else:
+                    if self.centerPointAToD > 0:
                         self.waitCorrection['D'] = False
                         self.placementOK['A'] = False
-                        self.placementOK['D'] = True
                         self.haveAlarm = False
                         return ["NO"], [numOfCurrentStep]
-
+                # 判斷A到D的"過程"有無 hand_PCB 標籤
                 centerPointInA = self.placementDetection.put_to_zone(Zone.A, yoloResult)
                 centerPointInD = self.placementDetection.put_to_zone(Zone.D, yoloResult)
                 if len(yoloResult["hand_PCB_coordinate"]) > 0 and not centerPointInA and not centerPointInD:
                     self.centerPointAToD += 1
 
-            elif not self.placementOK["D"]:
-                D_placementOK = self.placementDetection.put_to_zone(Zone.D, yoloResult)
-                if D_placementOK:
-                    self.placementOK["D"] = True
-                    return ["NO"], [numOfCurrentStep]
-                else: # 若還沒放到D區就先放到A區時，就判流程錯
-                    A_placementOK = self.placementDetection.put_to_zone(Zone.A, yoloResult)
-                    if A_placementOK:
-                        isAnomalyStep = "YES"
-                        self.waitCorrection['D'] = True
-                        
-            elif self.placementOK["D"] and not self.placementOK["A"]:
-                A_placementOK = self.placementDetection.put_to_zone(Zone.A, yoloResult)
-                if A_placementOK:
-                    self.placementOK["A"] = True
+            # 判斷D區有無放入
+            elif not self.placementOK["A"]:   
+                if not self.placementOK["D"]: # D區還沒放
+                    self.placementOK["D"] = self.placementDetection.put_to_zone(Zone.D, yoloResult)
+                    if self.placementOK["D"]: # D區已放
+                        return ["NO"], [numOfCurrentStep]
+                    else: # 若還沒放到D區就先放到A區時，就判流程錯
+                        if self.placementDetection.put_to_zone(Zone.A, yoloResult):
+                            isAnomalyStep = "YES"
+                            self.waitCorrection['D'] = True        
+                else: # D區已放
+                    self.placementOK["A"] = self.placementDetection.put_to_zone(Zone.A, yoloResult)
 
-        # 判斷有無回到第二步，B區->D區 (第三步補救)        
-        elif self.processDetection.currentStep.number == 4:
 
+        ### 判斷有無回到第二步，B區->D區 (第三步補救) ###        
+        elif numOfCurrentStep == 4:
+
+            # 代表"有放到A沒放到D" 或 "有放到D沒放到A"
             if self.waitCorrection['D'] or self.waitCorrection['A']:
-                if self.processDetection.jigLabel.current == Label.type3:
+                if self.processDetection.jigLabel.current == Label.type3: # Label.type3 == "frame"
                     self.processDetection.currentStep.number = 2
                     self.haveAlarm = False
-                    return ["NO"], [self.processDetection.currentStep.number]
+                    return ["NONE"], [-1]
                 else:
-                    isAnomalyStep = "YES"
                     self.processEnd = True
-            # else:
-            #     if not self.placementOK["C2"]:
-            #         C2_placementOK = self.placementDetection.put_to_zone(Zone.C, yoloResult)
-            #         if C2_placementOK:
-            #             self.placementOK["C2"] = True
-            #             self.processEnd = True
-            #             return ["NO"], [numOfCurrentStep]
+                    return ["YES"], [numOfCurrentStep]
             
+            # 如果前幾步有Alarm就直接錯
             if self.haveAlarm:
                 self.processEnd = True
-                if isAnomalyStep == 'NONE':
-                    return ["NONE"], [numOfCurrentStep]
-                else:
-                    return ["YES"], [numOfCurrentStep]
+                return ["YES"], [numOfCurrentStep]
 
-            if isAnomalyStep != "YES":
-                self.temp1 = True
-                self.initialize_parameter()  
-                # self.processEnd = True
-                return ["NONE"], [-1]
+            self.needJudgementStep4 = True
+            self.initialize_parameter()  
+            return ["NONE"], [-1]
 
-        ######################################################### 用流程去判斷是否正確 #############################################################
+
+        ######################################################### 用"流程"去判斷是否正確 #############################################################
         # 目前步驟正確
         if isAnomalyStep == "NO":
 
-            if self.processDetection.is_first_step():
-                pass
-
-            if self.processDetection.currentStep.number == 1:
-                list1 = []
-                list2 = []
-                if not self.placementOK["C2"] and self.temp1:
-                    self.temp1 = False
-                    list1.append("YES")
-                    list2.append(4)
-                    temp = copy.deepcopy(self.q)
-                    save_video(datetime.now(), temp, self.recordPath) 
-                    self.q.clear()
-                    self.haveAlarm = False
-                if not self.placementOK["C1"]:
-                    self.temp1 = False
+            if numOfCurrentStep == 1:
+                if not self.placementOK["C"]:
+                    if self.needJudgementStep4:
+                        self.needJudgementStep4 = False
+                        temp = copy.deepcopy(self.storgeOfVideoFrames)
+                        save_video(datetime.now(), temp, self.recordPath) 
+                        self.storgeOfVideoFrames.clear()
+                        thread = Thread(target=play_alarmSound("motion"))
+                        thread.start()
+                        self.haveAlarm = True
+                        self.needRecord = True
+                        return ["YES", "YES"], [4, numOfCurrentStep]
                     isAnomalyStep = "YES"
-                    list1.append("YES")
-                    list2.append(1)
-
-                    thread = Thread(target=play_alarmSound("motion"))
-                    thread.start()
-                    self.haveAlarm = True
-                    self.needRecord = True
-
-                    return list1, list2
                 else:
-                    self.temp1 = False
-                    list1.append("NO")
-                    list2.append(1)
-                    # return isAnomalyStep, numOfCurrentStep
-                    return list1, list2
-                
-
-            if self.processDetection.currentStep.number == 2: # 交由PlacementDetection判斷
-                pass
+                    if self.needJudgementStep4:
+                        return ["NO", "NO"], [4, numOfCurrentStep]
+                    return ["NO"], [numOfCurrentStep]
             
-            if self.processDetection.currentStep.number == 3: # 流程到step 3.，但過程中面板沒有到D區和A區時，就判 step 2.B->D 錯
+            elif numOfCurrentStep == 3: # 流程到step 3.，但過程中面板沒有到D區和A區時，就判 step 2.B->D 錯
                 
                 if self.haveAlarm:
                     if isAnomalyStep == 'NONE':
                         return ["NONE"], [numOfCurrentStep]
                     else:
                         return ["YES"], [numOfCurrentStep]
-
-                if self.waitCorrection['D']: # 代表有過A區、但D區都沒放面板
-                    isAnomalyStep = "YES"
-                elif not self.placementOK["D"]: # 代表A區、D區都沒放面板
-                    # isAnomalyStep = "YES"
-                    # numOfCurrentStep = numOfCurrentStep-1
-                    # self.waitCorrection['D'] = True
+                
+                if not self.placementOK["D"]: # 代表 有過A區、但D區都沒放面板 or A區、D區都沒放面板
+                    if self.waitCorrection['D']: # 代表有過A區、但D區都沒放面板
+                        return ["YES"], [numOfCurrentStep]
                     thread = Thread(target=play_alarmSound("motion"))
                     thread.start()
                     self.haveAlarm = True
@@ -378,17 +319,12 @@ class Motion:
                 else: # 代表D區有放面板
                     if self.placementOK["A"]:
                         self.waitCorrection['A'] = False
-                        return [isAnomalyStep], [numOfCurrentStep]
+                        return ["NO"], [numOfCurrentStep]
                     else:
-                        isAnomalyStep = "YES"
                         self.waitCorrection['A'] = True
-
-            elif self.processDetection.currentStep.number == 4: # 交由PlacementDetection判斷
-                pass
-
-            else:
-                pass
-
+                        isAnomalyStep = "YES"
+                        
+                        
         # 目前步驟錯誤
         if isAnomalyStep == "YES":
             thread = Thread(target=play_alarmSound("motion"))
